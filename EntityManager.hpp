@@ -1,68 +1,43 @@
 #pragma once
 
+#include <queue>
+#include <cstdint>
+#include <unordered_map>
 
-namespace DE
+namespace ECS
 {
-
     class EntityManager
     {
-    private:
-        using Signature = std::vector<bool>;
-
-        uint64_t               m_EntitiesAmount;
-        uint64_t               m_ComponentAmount;
-        std::queue<EntityId>   m_AvailableEntities;
-        std::vector<Signature> m_Signatures;
-
     public:
-        EntityManager() : m_EntitiesAmount(0), m_ComponentAmount(0)
-        {
-            // Logger::Info("ECS", "EntityManager", "EntityManager created.");
-        }
-        ~EntityManager()
-        {
-            // Logger::Info("ECS", "EntityManager", "EntityManager terminated.");
-        }
+        EntityManager() = default;
 
-        std::pair<EntityId, bool> CreateEntity()
+        std::pair<uint32_t, uint32_t> CreateEntity()
         {
-            bool new_entity_created = false;
             if (m_AvailableEntities.empty())
             {
-                m_AvailableEntities.push(m_Signatures.size());
-                m_Signatures.push_back(Signature(m_ComponentAmount, false));
-                new_entity_created = true;
+                m_AvailableEntities.push(m_Generations.size());
             }
-
-            EntityId entity_id = m_AvailableEntities.front();
+            auto id = m_AvailableEntities.front();
             m_AvailableEntities.pop();
-            ++m_EntitiesAmount;
-
-            // Logger::Info("ECS", "EntityManager", "Entity created (" + std::to_string(entity_id) + ")");
-
-            return std::make_pair(entity_id, new_entity_created);
-        }
-        void DestroyEntity(EntityId entity_id)
-        {
-            m_AvailableEntities.push(entity_id);
-            --m_EntitiesAmount;
-
-            // Logger::sInfo("ECS", "EntityManager", "Entity destroyed (" + std::to_string(entity_id) + ")");
-        }
-
-        void AddComponent(EntityId entity_id, ComponentId component_id) { m_Signatures[entity_id][component_id] = 1; }
-        void RemoveComponent(EntityId entity_id, ComponentId component_id) { m_Signatures[entity_id][component_id] = 0; }
-        bool GetComponent(EntityId entity_id, ComponentId component_id) { return m_Signatures[entity_id][component_id]; }
-
-        void CopyEntity(EntityId from, EntityId to) { m_Signatures[to] = m_Signatures[from]; }
-
-        void ExtendSignatures()
-        {
-            ++m_ComponentAmount;
-            for (auto& signature : m_Signatures)
+            if (++m_Generations[id] == 0)
             {
-                signature.push_back(false);
+                ++m_Generations[id];
             }
+            return std::make_pair(id, m_Generations[id]);
         }
+        bool Destroy(uint32_t id, uint32_t gen)
+        {
+            if (m_Generations.find(id) != m_Generations.end() && m_Generations[id] == gen)
+            {
+                m_AvailableEntities.push(id);
+                return true;
+            }
+            return false;
+        }
+        bool Valid(uint32_t id, uint32_t gen) const { return m_Generations.find(id) != m_Generations.end() && m_Generations.at(id) == gen; }
+
+    private:
+        std::unordered_map<uint32_t, uint32_t> m_Generations;
+        std::queue<uint32_t>                   m_AvailableEntities;
     };
-}  // namespace DE
+}  // namespace ECS

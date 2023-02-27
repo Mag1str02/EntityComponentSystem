@@ -2,7 +2,7 @@
 #include <memory>
 #include "Entity.hpp"
 
-using namespace DE;
+using namespace ECS;
 
 int main()
 {
