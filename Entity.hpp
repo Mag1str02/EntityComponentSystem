@@ -3,9 +3,13 @@
 #include "ComponentManager.hpp"
 #include "EntityManager.hpp"
 // #include "SystemManager.hpp"
+
+//*___ENTITY___________________________________________________________________________________________________________________________________________
+
 namespace ECS
 {
     class Entity;
+    template <typename... Components> class StorageView;
     class Storage
     {
     public:
@@ -16,8 +20,8 @@ namespace ECS
         Storage& operator=(const Storage&) = delete;
         Storage& operator=(Storage&&)      = delete;
 
-        Entity                                                CreateEntity();
-        template <typename... Components> std::vector<Entity> View();
+        Entity                                                       CreateEntity();
+        template <typename... Components> StorageView<Components...> View();
 
         // template <typename ComponentType> ComponentArray<ComponentType>& GetComponentArray()
         // {
@@ -27,6 +31,7 @@ namespace ECS
         // void                                UpdateSystems(double dt) { m_SystemManager.Update(dt); }
 
     private:
+        template <typename... Components> friend class StorageView;
         friend class Entity;
 
         bool Valid(uint32_t id, uint32_t gen) const;
@@ -41,6 +46,8 @@ namespace ECS
         ComponentManager m_ComponentManager;
         // SystemManager    m_SystemManager;
     };
+
+    //*___ENTITY___________________________________________________________________________________________________________________________________________
 
     class Entity
     {
@@ -59,12 +66,45 @@ namespace ECS
         bool operator!=(const Entity& other) const;
 
     private:
+        template <typename... Components> friend class StorageView;
         friend struct std::hash<Entity>;
         friend class Storage;
 
         uint32_t m_ID;
         uint32_t m_Gen;
         Storage* m_Storage;
+    };
+
+    //*___VIEW___________________________________________________________________________________________________________________________________________
+
+    template <typename... Components> class StorageView
+    {
+    public:
+        class Iterator
+        {
+        public:
+            Iterator(uint32_t id, StorageView* v) : m_ID(id), m_View(v) {}
+
+            bool      operator==(const Iterator& other) const { return m_View == other.m_View && m_ID == other.m_ID; }
+            bool      operator!=(const Iterator& other) const { return m_View != other.m_View || m_ID != other.m_ID; }
+            Iterator& operator++();
+            Iterator  operator++(int);
+            Entity    operator*();
+
+        private:
+            friend class StorageView;
+            uint32_t     m_ID;
+            StorageView* m_View;
+        };
+        Iterator begin();
+        Iterator end();
+
+    private:
+        friend class Storage;
+        StorageView(Storage* storage);
+
+        Signature m_Signature;
+        Storage*  m_Storage;
     };
 
     //*___STORAGE___________________________________________________________________________________________________________________________________________
@@ -78,19 +118,7 @@ namespace ECS
         ent.m_Storage = this;
         return ent;
     }
-    template <typename... Components> std::vector<Entity> Storage::View()
-    {
-        auto ids = m_EntityManager.GetValidEntities();
-        m_ComponentManager.SelectBySignature<Components...>(ids);
-        std::vector<Entity> entities(ids.size());
-        for (size_t i = 0; i < entities.size(); ++i)
-        {
-            entities[i].m_ID      = ids[i].first;
-            entities[i].m_Gen     = ids[i].second;
-            entities[i].m_Storage = this;
-        }
-        return entities;
-    }
+    template <typename... Components> StorageView<Components...> Storage::View() { return StorageView<Components...>(this); }
 
     bool Storage::Valid(uint32_t id, uint32_t gen) const { return m_EntityManager.Valid(id, gen); }
     void Storage::Destroy(uint32_t id, uint32_t gen)
@@ -160,6 +188,54 @@ namespace ECS
 
     bool Entity::operator==(const Entity& other) const { return m_ID == other.m_ID && m_Gen == other.m_Gen && m_Storage == other.m_Storage; }
     bool Entity::operator!=(const Entity& other) const { return m_ID != other.m_ID || m_Gen != other.m_Gen || m_Storage != other.m_Storage; }
+
+    //*___VIEW___________________________________________________________________________________________________________________________________________
+
+    template <typename... Components> StorageView<Components...>::StorageView(Storage* storage) : m_Storage(storage)
+    {
+        m_Signature = m_Storage->m_ComponentManager.BuildSignature<Components...>();
+    }
+    template <typename... Components> typename StorageView<Components...>::Iterator StorageView<Components...>::begin()
+    {
+        Iterator res(m_Storage->m_EntityManager.BeginEntity(), this);
+        if (!m_Storage->m_ComponentManager.Matches(res.m_ID, m_Signature))
+        {
+            ++res;
+        }
+        return res;
+    }
+    template <typename... Components> typename StorageView<Components...>::Iterator StorageView<Components...>::end()
+    {
+        return Iterator(m_Storage->m_EntityManager.EndEntity(), this);
+    }
+
+    template <typename... Components> typename StorageView<Components...>::Iterator& StorageView<Components...>::Iterator::operator++()
+    {
+        do
+        {
+            m_ID = m_View->m_Storage->m_EntityManager.NextEntity(m_ID);
+        }
+        while (m_ID != m_View->m_Storage->m_EntityManager.EndEntity() && !m_View->m_Storage->m_ComponentManager.Matches(m_ID, m_View->m_Signature));
+        return *this;
+    }
+    template <typename... Components> typename StorageView<Components...>::Iterator StorageView<Components...>::Iterator::operator++(int)
+    {
+        auto res = *this;
+        do
+        {
+            m_ID = m_View->m_Storage->m_EntityManager.NextEntity(m_ID);
+        }
+        while (m_ID != m_View->m_Storage->m_EntityManager.EndEntity() && m_View->m_Storage->m_ComponentManager.Matches(m_ID, m_View->m_Signature));
+        return res;
+    }
+    template <typename... Components> Entity StorageView<Components...>::Iterator::operator*()
+    {
+        Entity res;
+        res.m_ID      = m_ID;
+        res.m_Gen     = m_View->m_Storage->m_EntityManager.Generation(m_ID);
+        res.m_Storage = m_View->m_Storage;
+        return res;
+    }
 
 }  // namespace ECS
 namespace std

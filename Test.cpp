@@ -16,34 +16,57 @@ struct Vec4
     double v[4];
 };
 
+double array[20];
+
 void Print(const std::vector<Entity>& v) { std::cout << v.size() << std::endl; }
 
-int main()
+template <typename... Components> void Print(Storage& storage)
 {
-    ECS::Storage storage;
-    Entity       e1 = storage.CreateEntity();
-    Entity       e2 = storage.CreateEntity();
-    Entity       e3 = storage.CreateEntity();
+    for (Entity d : storage.View<Components...>())
+    {
+        std::cout << *d.Get<std::string>() << " ";
+    }
+    std::cout << std::endl;
+}
 
+void Test1()
+{
+    Storage storage;
+    Entity  e1 = storage.CreateEntity();
+    Entity  e2 = storage.CreateEntity();
+    Entity  e3 = storage.CreateEntity();
+    Entity  e4 = storage.CreateEntity();
+
+    e1.Add<std::string>("First");
     e1.Add<Vec2>();
     e1.Add<Vec3>();
+    e2.Add<std::string>("Second");
     e2.Add<Vec3>();
     e2.Add<Vec4>();
+    e3.Add<std::string>("Third");
     e3.Add<Vec4>();
     e3.Add<Vec2>();
     e3.Add<int>();
+    e4.Add<std::string>("Fourth");
+    e4.Add<Vec4>();
+    e4.Add<Vec3>();
+    e4.Add<Vec2>();
+    e4.Add<int>();
 
-    Print(storage.View<>());
-    Print(storage.View<int>());
-    Print(storage.View<Vec2>());
-    Print(storage.View<Vec3>());
-    Print(storage.View<Vec4>());
-    Print(storage.View<Vec2, Vec3>());
-    Print(storage.View<Vec3, Vec4>());
-    Print(storage.View<Vec4, Vec2>());
-    Print(storage.View<Vec2, Vec4>());
+    Print<>(storage);
+    Print<std::string>(storage);
+    Print<std::string, Vec2>(storage);
+    Print<std::string, Vec3>(storage);
+    Print<std::string, Vec4>(storage);
+    Print<std::string, Vec2, Vec4>(storage);
+    Print<std::string, Vec2, Vec3, Vec4>(storage);
+    Print<int>(storage);
 
     printf("Succeeded!\n");
+}
 
+int main()
+{
+    Test1();
     return 0;
 }

@@ -20,8 +20,6 @@ namespace ECS
             m_Data[id >> 6] &= ~(1 << (id & 63));
             m_Data[id >> 6] |= ((uint64_t)value << (id & 63));
         }
-        bool   Empty() const { return m_Data.empty(); }
-        size_t Size() const { return m_Data.size(); }
 
         bool Matches(const Signature& required) const
         {
@@ -97,24 +95,19 @@ namespace ECS
             m_Signatures[entity_id] = Signature();
         }
 
-        template <typename... Components> void SelectBySignature(std::vector<std::pair<uint32_t, uint32_t>>& entities)
+        template <typename... Components> Signature BuildSignature()
         {
-            if (!ValidateComponents<Components...>())
+            return (ValidateComponents<Components...>() ? GetSignature<Components...>() : Signature());
+        }
+        bool Matches(uint32_t id, const Signature& signature) const
+        {
+            if (m_Signatures.size() <= id)
             {
-                entities.clear();
+                return false;
             }
-            Signature reqirements = GetSignature<Components...>();
-            size_t    current     = 0;
-            size_t    valid       = 0;
-            while (current < entities.size())
-            {
-                if (m_Signatures[current].Matches(reqirements))
-                {
-                    entities[valid++] = entities[current];
-                }
-                current++;
-            }
-            entities.resize(valid);
+            // printf("Cheking %u...\n", id);
+            // m_Signatures.at(id).Print();
+            return m_Signatures.at(id).Matches(signature);
         }
 
     private:
