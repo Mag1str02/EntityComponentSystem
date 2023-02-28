@@ -16,7 +16,8 @@ namespace ECS
         Storage& operator=(const Storage&) = delete;
         Storage& operator=(Storage&&)      = delete;
 
-        Entity CreateEntity();
+        Entity                                                CreateEntity();
+        template <typename... Components> std::vector<Entity> View();
 
         // template <typename ComponentType> ComponentArray<ComponentType>& GetComponentArray()
         // {
@@ -28,13 +29,13 @@ namespace ECS
     private:
         friend class Entity;
 
-        void Destroy(uint32_t id, uint32_t gen);
         bool Valid(uint32_t id, uint32_t gen) const;
+        void Destroy(uint32_t id, uint32_t gen);
 
-        template <typename ComponentType> ComponentType* AddComponent(uint32_t id, uint32_t gen, ComponentType& component);
-        template <typename ComponentType> ComponentType* RemoveComponent(uint32_t id, uint32_t gen);
+        template <typename ComponentType> ComponentType* AddComponent(uint32_t id, uint32_t gen, const ComponentType& component);
         template <typename ComponentType> ComponentType* GetComponent(uint32_t id, uint32_t gen);
         template <typename ComponentType> bool           HasComponent(uint32_t id, uint32_t gen) const;
+        template <typename ComponentType> void           RemoveComponent(uint32_t id, uint32_t gen);
 
         EntityManager    m_EntityManager;
         ComponentManager m_ComponentManager;
@@ -50,9 +51,9 @@ namespace ECS
         void Destroy();
 
         template <typename ComponentType> ComponentType* Add(ComponentType component = ComponentType());
-        template <typename ComponentType> void           Remove();
         template <typename ComponentType> ComponentType* Get();
         template <typename ComponentType> bool           Has() const;
+        template <typename ComponentType> void           Remove();
 
         bool operator==(const Entity& other) const;
         bool operator!=(const Entity& other) const;
@@ -66,6 +67,8 @@ namespace ECS
         Storage* m_Storage;
     };
 
+    //*___STORAGE___________________________________________________________________________________________________________________________________________
+
     Entity Storage::CreateEntity()
     {
         auto [id, gen] = m_EntityManager.CreateEntity();
@@ -75,25 +78,33 @@ namespace ECS
         ent.m_Storage = this;
         return ent;
     }
+    template <typename... Components> std::vector<Entity> Storage::View()
+    {
+        auto ids = m_EntityManager.GetValidEntities();
+        m_ComponentManager.SelectBySignature<Components...>(ids);
+        std::vector<Entity> entities(ids.size());
+        for (size_t i = 0; i < entities.size(); ++i)
+        {
+            entities[i].m_ID      = ids[i].first;
+            entities[i].m_Gen     = ids[i].second;
+            entities[i].m_Storage = this;
+        }
+        return entities;
+    }
+
     bool Storage::Valid(uint32_t id, uint32_t gen) const { return m_EntityManager.Valid(id, gen); }
     void Storage::Destroy(uint32_t id, uint32_t gen)
     {
-        if (m_EntityManager.Destroy(id, gen))
+        if (m_EntityManager.Valid(id, gen))
         {
+            m_EntityManager.Destroy(id);
             m_ComponentManager.Destroy(id);
         }
     }
 
-    template <typename ComponentType> ComponentType* Storage::AddComponent(uint32_t id, uint32_t gen, ComponentType& component)
+    template <typename ComponentType> ComponentType* Storage::AddComponent(uint32_t id, uint32_t gen, const ComponentType& component)
     {
         return (m_EntityManager.Valid(id, gen) ? m_ComponentManager.AddComponent<ComponentType>(id, component) : nullptr);
-    }
-    template <typename ComponentType> ComponentType* Storage::RemoveComponent(uint32_t id, uint32_t gen)
-    {
-        if (m_EntityManager.Valid(id, gen))
-        {
-            m_ComponentManager.RemoveComponent<ComponentType>(id);
-        }
     }
     template <typename ComponentType> ComponentType* Storage::GetComponent(uint32_t id, uint32_t gen)
     {
@@ -103,6 +114,15 @@ namespace ECS
     {
         return (m_EntityManager.Valid(id, gen) ? m_ComponentManager.HasComponent<ComponentType>(id) : false);
     }
+    template <typename ComponentType> void Storage::RemoveComponent(uint32_t id, uint32_t gen)
+    {
+        if (m_EntityManager.Valid(id, gen))
+        {
+            m_ComponentManager.RemoveComponent<ComponentType>(id);
+        }
+    }
+
+    //*___ENTITY___________________________________________________________________________________________________________________________________________
 
     bool Entity::Valid() const { return m_Storage && m_Storage->Valid(m_ID, m_Gen); }
     void Entity::Destroy()
@@ -116,17 +136,26 @@ namespace ECS
 
     template <typename ComponentType> ComponentType* Entity::Add(ComponentType component)
     {
-        return m_Storage->AddComponent<ComponentType>(m_ID, m_Gen, component);
+        return (m_Storage ? m_Storage->AddComponent<ComponentType>(m_ID, m_Gen, component) : nullptr);
     }
-    template <typename ComponentType> void           Entity::Remove() { m_Storage->RemoveComponent<ComponentType>(m_ID, m_Gen); }
-    template <typename ComponentType> ComponentType* Entity::Get() { return m_Storage->GetComponent<ComponentType>(m_ID, m_Gen); }
-    template <typename ComponentType> bool           Entity::Has() const
+    template <typename ComponentType> ComponentType* Entity::Get()
+    {
+        return (m_Storage ? m_Storage->GetComponent<ComponentType>(m_ID, m_Gen) : nullptr);
+    }
+    template <typename ComponentType> bool Entity::Has() const
     {
         if (!m_Storage)
         {
             return false;
         }
         return m_Storage->HasComponent<ComponentType>(m_ID, m_Gen);
+    }
+    template <typename ComponentType> void Entity::Remove()
+    {
+        if (m_Storage)
+        {
+            m_Storage->RemoveComponent<ComponentType>(m_ID, m_Gen);
+        }
     }
 
     bool Entity::operator==(const Entity& other) const { return m_ID == other.m_ID && m_Gen == other.m_Gen && m_Storage == other.m_Storage; }
@@ -137,6 +166,9 @@ namespace std
 {
     template <> struct hash<ECS::Entity>
     {
-        std::size_t operator()(const ECS::Entity& entity) const { return hash<uint64_t>()((uint64_t)entity.m_ID << 32 + entity.m_Gen); }
+        std::size_t operator()(const ECS::Entity& entity) const
+        {
+            return hash<uint64_t>()(((uint64_t)entity.m_ID << 32) + entity.m_Gen) ^ hash<uint64_t>()(reinterpret_cast<uint64_t>(entity.m_Storage));
+        }
     };
 }  // namespace std

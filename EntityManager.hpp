@@ -15,29 +15,38 @@ namespace ECS
         {
             if (m_AvailableEntities.empty())
             {
-                m_AvailableEntities.push(m_Generations.size());
+                m_AvailableEntities.push(m_States.size());
+                m_States.push_back(false);
+                m_Generations.push_back(0);
             }
             auto id = m_AvailableEntities.front();
             m_AvailableEntities.pop();
-            if (++m_Generations[id] == 0)
-            {
-                ++m_Generations[id];
-            }
+            m_States[id] = true;
+            ++m_Generations[id];
             return std::make_pair(id, m_Generations[id]);
         }
-        bool Destroy(uint32_t id, uint32_t gen)
+        std::vector<std::pair<uint32_t, uint32_t>> GetValidEntities() const
         {
-            if (m_Generations.find(id) != m_Generations.end() && m_Generations[id] == gen)
+            std::vector<std::pair<uint32_t, uint32_t>> res;
+            for (size_t i = 0; i < m_States.size(); ++i)
             {
-                m_AvailableEntities.push(id);
-                return true;
+                if (m_States[i])
+                {
+                    res.emplace_back(i, m_Generations[i]);
+                }
             }
-            return false;
+            return res;
         }
-        bool Valid(uint32_t id, uint32_t gen) const { return m_Generations.find(id) != m_Generations.end() && m_Generations.at(id) == gen; }
+        void Destroy(uint32_t id)
+        {
+            m_States[id] = false;
+            m_AvailableEntities.push(id);
+        }
+        bool Valid(uint32_t id, uint32_t gen) const { return m_States[id] && m_Generations[id] == gen; }
 
     private:
-        std::unordered_map<uint32_t, uint32_t> m_Generations;
-        std::queue<uint32_t>                   m_AvailableEntities;
+        std::vector<uint32_t> m_Generations;
+        std::vector<bool>     m_States;
+        std::queue<uint32_t>  m_AvailableEntities;
     };
 }  // namespace ECS

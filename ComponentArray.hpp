@@ -10,7 +10,6 @@ namespace ECS
         virtual ~IComponentArray()                               = default;
         virtual void* AddComponent(uint32_t id, void* component) = 0;
         virtual void* GetComponent(uint32_t id)                  = 0;
-        virtual bool  HasComponent(uint32_t id) const            = 0;
         virtual void  RemoveComponent(uint32_t id)               = 0;
     };
 
@@ -21,7 +20,7 @@ namespace ECS
 
         virtual void* AddComponent(uint32_t id, void* component)
         {
-            if (!HasComponent(id))
+            if (m_ComponentArray.size() < id + 1)
             {
                 m_EntityToIndex[id] = m_ComponentArray.size();
                 m_ComponentArray.push_back(*reinterpret_cast<ComponentType*>(component));
@@ -32,18 +31,14 @@ namespace ECS
             }
             return &m_ComponentArray[m_EntityToIndex[id]];
         }
-        virtual void* GetComponent(uint32_t id) { return (HasComponent(id) ? &m_ComponentArray[m_EntityToIndex[id]] : nullptr); }
-        virtual bool  HasComponent(uint32_t id) const { return m_EntityToIndex.find(id) != m_EntityToIndex.end(); }
+        virtual void* GetComponent(uint32_t id) { return &m_ComponentArray[m_EntityToIndex[id]]; }
         virtual void  RemoveComponent(uint32_t id)
         {
-            if (HasComponent(id))
+            if (m_EntityToIndex[id] != m_ComponentArray.size() - 1)
             {
-                if (m_EntityToIndex[id] != m_ComponentArray.size() - 1)
-                {
-                    m_ComponentArray[m_EntityToIndex[id]] = m_ComponentArray.back();
-                }
-                m_ComponentArray.pop_back();
+                m_ComponentArray[m_EntityToIndex[id]] = m_ComponentArray.back();
             }
+            m_ComponentArray.pop_back();
         }
 
     private:
