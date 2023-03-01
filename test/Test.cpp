@@ -2,7 +2,6 @@
 #include <memory>
 #include "ECS/ECS.h"
 
-using namespace ECS;
 struct Vec2
 {
     double v[2];
