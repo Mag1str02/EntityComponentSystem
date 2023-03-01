@@ -1,6 +1,6 @@
 #include <iostream>
 #include <memory>
-#include "Entity.hpp"
+#include "ECS.h"
 
 using namespace ECS;
 struct Vec2
