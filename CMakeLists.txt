@@ -4,4 +4,5 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 project(Examples)
 
-add_executable(Test Test.cpp)
+add_executable(Test test/Test.cpp)
+target_include_directories(Test PUBLIC include)

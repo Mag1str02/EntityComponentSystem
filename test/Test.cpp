@@ -1,6 +1,6 @@
 #include <iostream>
 #include <memory>
-#include "ECS.h"
+#include "ECS/ECS.h"
 
 using namespace ECS;
 struct Vec2
