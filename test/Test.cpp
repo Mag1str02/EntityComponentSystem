@@ -2,6 +2,8 @@
 #include <memory>
 #include "ECS/ECS.h"
 
+using namespace ECS;
+
 struct Vec2
 {
     double v[2];
@@ -67,6 +69,7 @@ void Test1()
     e4.Add<Vec2>();
     e4.Add<int>();
 
+    Print<double>(storage);
     Print<>(storage);
     Print<std::string>(storage);
     Print<std::string, Vec2>(storage);
