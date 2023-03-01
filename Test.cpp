@@ -18,6 +18,21 @@ struct Vec4
 
 double array[20];
 
+class MySystem : public System
+{
+public:
+    virtual std::string GetName() const override { return "MySystem"; }
+    virtual void        Update(float dt) override
+    {
+        printf("My system: ");
+        for (Entity e : View<std::string>())
+        {
+            std::cout << *e.Get<std::string>() << " ";
+        }
+        std::cout << std::endl;
+    }
+};
+
 void Print(const std::vector<Entity>& v) { std::cout << v.size() << std::endl; }
 
 template <typename... Components> void Print(Storage& storage)
@@ -61,6 +76,9 @@ void Test1()
     Print<std::string, Vec2, Vec4>(storage);
     Print<std::string, Vec2, Vec3, Vec4>(storage);
     Print<int>(storage);
+
+    storage.RegisterSystem<MySystem>();
+    storage.UpdateSystems(1);
 
     printf("Succeeded!\n");
 }

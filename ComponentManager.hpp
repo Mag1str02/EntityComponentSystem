@@ -37,9 +37,9 @@ namespace ECS
     {
         RegisterComponent<ComponentType>();
         ValidateSignature(entity_id);
-        m_Signatures[entity_id].Set(m_ComponentId[std::type_index(typeid(ComponentType))], true);
+        m_Signatures[entity_id].Set(m_ComponentId[INDEX(ComponentType)], true);
         return reinterpret_cast<ComponentType*>(
-            m_ComponentArrays[std::type_index(typeid(ComponentType))]->AddComponent(entity_id, const_cast<ComponentType*>(&component)));
+            m_ComponentArrays[INDEX(ComponentType)]->AddComponent(entity_id, const_cast<ComponentType*>(&component)));
     }
     template <typename ComponentType> ComponentType* ComponentManager::GetComponent(uint32_t entity_id)
     {
@@ -48,26 +48,25 @@ namespace ECS
         {
             return nullptr;
         }
-        return reinterpret_cast<ComponentType*>(m_ComponentArrays[std::type_index(typeid(ComponentType))]->GetComponent(entity_id));
+        return reinterpret_cast<ComponentType*>(m_ComponentArrays[INDEX(ComponentType)]->GetComponent(entity_id));
     }
     template <typename ComponentType> void ComponentManager::RemoveComponent(uint32_t entity_id)
     {
         ValidateSignature(entity_id);
         if (HasComponent<ComponentType>(entity_id))
         {
-            m_Signatures[entity_id].Set(m_ComponentId[std::type_index(typeid(ComponentType))], false);
-            m_ComponentArrays[std::type_index(typeid(ComponentType))]->RemoveComponent(entity_id);
+            m_Signatures[entity_id].Set(m_ComponentId[INDEX(ComponentType)], false);
+            m_ComponentArrays[INDEX(ComponentType)]->RemoveComponent(entity_id);
         }
     }
     template <typename ComponentType> bool ComponentManager::HasComponent(uint32_t entity_id) const
     {
-        auto type = std::type_index(typeid(ComponentType));
-        if (m_Signatures.size() < entity_id + 1 || m_ComponentId.find(type) == m_ComponentId.end())
+        if (m_Signatures.size() < entity_id + 1 || m_ComponentId.find(INDEX(ComponentType)) == m_ComponentId.end())
         {
             return false;
         }
 
-        return m_Signatures.at(entity_id).Get(m_ComponentId.at(type));
+        return m_Signatures.at(entity_id).Get(m_ComponentId.at(INDEX(ComponentType)));
     }
     void ComponentManager::Destroy(uint32_t entity_id)
     {
@@ -95,7 +94,7 @@ namespace ECS
 
     template <typename T, typename... Components> bool ComponentManager::ValidateComponentsHelper() const
     {
-        if (m_ComponentId.find(std::type_index(typeid(T))) == m_ComponentId.end())
+        if (m_ComponentId.find(INDEX(T)) == m_ComponentId.end())
         {
             return false;
         }
@@ -107,7 +106,7 @@ namespace ECS
     template <typename T, typename... Components> Signature ComponentManager::GetSignatureHelper() const
     {
         Signature res = GetSignature<Components...>();
-        res.Set(m_ComponentId.at(std::type_index(typeid(T))), true);
+        res.Set(m_ComponentId.at(INDEX(T)), true);
         return res;
     }
     template <typename... Components> Signature ComponentManager::GetSignature() const { return GetSignatureHelper<Components...>(); }
@@ -122,11 +121,10 @@ namespace ECS
     }
     template <typename ComponentType> void ComponentManager::RegisterComponent()
     {
-        auto type = std::type_index(typeid(ComponentType));
-        if (m_ComponentId.find(type) == m_ComponentId.end())
+        if (m_ComponentId.find(INDEX(ComponentType)) == m_ComponentId.end())
         {
-            m_ComponentId[type]     = m_ComponentId.size();
-            m_ComponentArrays[type] = std::make_shared<ComponentArray<ComponentType>>(ComponentArray<ComponentType>());
+            m_ComponentId[INDEX(ComponentType)]     = m_ComponentId.size();
+            m_ComponentArrays[INDEX(ComponentType)] = std::make_shared<ComponentArray<ComponentType>>(ComponentArray<ComponentType>());
         }
     }
 }  // namespace ECS

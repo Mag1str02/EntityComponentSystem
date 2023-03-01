@@ -6,6 +6,8 @@
 #include <typeindex>
 #include <queue>
 
+#define INDEX(type) std::type_index(typeid(type))
+
 namespace ECS
 {
     //*___CLASS_DECLARATIONS___________________________________________________________________________________________________________________________________________________________________________________________________
@@ -111,49 +113,37 @@ namespace ECS
 
     //*___SYSTEM_MANAGER___________________________________________________________________________________________________________________________________________________________________________________________
 
-    // class System
-    // {
-    // public:
-    //     virtual std::string GetName() const = 0;
-    //     virtual ~System()                   = default;
-    //     virtual void Update(double dt)      = 0;
+    class System
+    {
+    public:
+        virtual ~System()                    = default;
+        virtual void        Update(float dt) = 0;
+        virtual std::string GetName() const  = 0;
 
-    // protected:
-    //     template <typename... Components> StorageView<Components...> View();
+    protected:
+        template <typename... Components> StorageView<Components...> View();
 
-    // private:
-    //     void Bind(Storage* component_manager);
+    private:
+        friend class SystemManager;
+        void Bind(Storage* storage);
 
-    //     Storage* m_Storage;
-    // };
-    // class SystemManager
-    // {
-    // public:
-    //     SystemManager() {}
-    //     void Update(double dt)
-    //     {
-    //         DE_PROFILE_SCOPE("System Update");
-    //         for (SystemId i = 0; i < m_SystemArray.size(); ++i)
-    //         {
-    //             m_SystemArray[i]->Update(dt);
-    //         }
-    //     }
+        Storage* m_Storage;
+    };
+    class SystemManager
+    {
+    public:
+        SystemManager(Storage* storage);
+        void                                            Update(float dt);
+        template <typename Before, typename After> void AddDependency();
+        template <typename SystemType> void             RegisterSystem();
 
-    //     template <typename SystemType> Ref<System> RegisterSystem()
-    //     {
-    //         if (m_SystemId.find(typeid(SystemType).name()) == m_SystemId.end())
-    //         {
-    //             m_SystemArray[m_SystemId.size()]      = CreateRef<SystemType>();
-    //             m_SystemId[typeid(SystemType).name()] = m_SystemId.size();
-    //         }
-    //         return m_SystemArray[m_SystemId.size() - 1];
-    //     }
+    private:
+        std::vector<std::shared_ptr<System>>          m_Systems;
+        std::unordered_map<std::type_index, uint32_t> m_SystemId;
+        std::vector<std::vector<uint32_t>>            m_DependencyGraph;
+        Storage*                                      m_Storage;
+    };
 
-    // private:
-    //     std::unordered_map<SystemId, Ref<System>> m_SystemArray;
-    //     std::unordered_map<std::string, SystemId> m_SystemId;
-    // };
-    
     //*___ENTITY____________________________________________________________________________________________________________________________________________________________________________________________________
 
     class Entity
@@ -187,7 +177,7 @@ namespace ECS
     class Storage
     {
     public:
-        Storage()                          = default;
+        Storage();
         ~Storage()                         = default;
         Storage(const Storage&)            = delete;
         Storage(Storage&&)                 = delete;
@@ -197,12 +187,8 @@ namespace ECS
         Entity                                                       CreateEntity();
         template <typename... Components> StorageView<Components...> View();
 
-        // template <typename ComponentType> ComponentArray<ComponentType>& GetComponentArray()
-        // {
-        //     return *m_ComponentManager.GetComponentArray<ComponentType>();
-        // }
-        // template <typename SystemType> void RegisterSystem() { m_SystemManager.RegisterSystem<SystemType>()->Bind(&m_ComponentManager); }
-        // void                                UpdateSystems(double dt) { m_SystemManager.Update(dt); }
+        template <typename SystemType> void RegisterSystem();
+        void                                UpdateSystems(float dt);
 
     private:
         template <typename... Components> friend class StorageView;
@@ -218,7 +204,7 @@ namespace ECS
 
         EntityManager    m_EntityManager;
         ComponentManager m_ComponentManager;
-        // SystemManager    m_SystemManager;
+        SystemManager    m_SystemManager;
     };
     template <typename... Components> class StorageView
     {
@@ -258,3 +244,5 @@ namespace ECS
 #include "Entity.hpp"
 #include "Storage.hpp"
 #include "StorageView.hpp"
+#include "System.hpp"
+#include "SystemManager.hpp"

@@ -3,6 +3,7 @@
 namespace ECS
 {
 
+    Storage::Storage() : m_SystemManager(this) {}
     Entity Storage::CreateEntity()
     {
         auto [id, gen] = m_EntityManager.CreateEntity();
@@ -13,6 +14,9 @@ namespace ECS
         return ent;
     }
     template <typename... Components> StorageView<Components...> Storage::View() { return StorageView<Components...>(this); }
+
+    template <typename SystemType> void Storage::RegisterSystem() { m_SystemManager.RegisterSystem<SystemType>(); }
+    void                                Storage::UpdateSystems(float dt) { m_SystemManager.Update(dt); }
 
     bool Storage::Valid(uint32_t id, uint32_t gen) const { return m_EntityManager.Valid(id, gen); }
     void Storage::Destroy(uint32_t id, uint32_t gen)
