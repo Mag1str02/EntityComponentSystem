@@ -83,13 +83,11 @@ namespace ECS
         bool                                        Matches(uint32_t id, const Signature& signature) const;
 
     private:
-        template <typename T, typename... Components> bool ValidateComponentsHelper() const;
-        template <typename... Components> bool             ValidateComponents() const;
-        template <> bool                                   ValidateComponents<>() const;
+        template <typename... Components> typename std::enable_if<sizeof...(Components) == 0, bool>::type ValidateComponents() const;
+        template <typename T, typename... Components> bool                                                ValidateComponents() const;
 
-        template <typename T, typename... Components> Signature GetSignatureHelper() const;
-        template <typename... Components> Signature             GetSignature() const;
-        template <> Signature                                   GetSignature<>() const;
+        template <typename... Components> typename std::enable_if<sizeof...(Components) == 0, Signature>::type GetSignature() const;
+        template <typename T, typename... Components> Signature                                                GetSignature() const;
 
         void                                   ValidateSignature(uint32_t entity_id);
         template <typename ComponentType> void RegisterComponent();

@@ -98,7 +98,11 @@ namespace ECS
         return m_Signatures.at(id).Matches(signature);
     }
 
-    template <typename T, typename... Components> bool ComponentManager::ValidateComponentsHelper() const
+    template <typename... Components> typename std::enable_if<sizeof...(Components) == 0, bool>::type ComponentManager::ValidateComponents() const
+    {
+        return true;
+    }
+    template <typename T, typename... Components> bool ComponentManager::ValidateComponents() const
     {
         if (m_ComponentId.find(INDEX(T)) == m_ComponentId.end())
         {
@@ -106,17 +110,17 @@ namespace ECS
         }
         return ValidateComponents<Components...>();
     }
-    template <typename... Components> bool ComponentManager::ValidateComponents() const { return ValidateComponentsHelper<Components...>(); }
-    template <> bool                       ComponentManager::ValidateComponents<>() const { return true; }
 
-    template <typename T, typename... Components> Signature ComponentManager::GetSignatureHelper() const
+    template <typename... Components> typename std::enable_if<sizeof...(Components) == 0, Signature>::type ComponentManager::GetSignature() const
+    {
+        return Signature();
+    }
+    template <typename T, typename... Components> Signature ComponentManager::GetSignature() const
     {
         Signature res = GetSignature<Components...>();
         res.Set(m_ComponentId.at(INDEX(T)), true);
         return res;
     }
-    template <typename... Components> Signature ComponentManager::GetSignature() const { return GetSignatureHelper<Components...>(); }
-    template <> Signature                       ComponentManager::GetSignature<>() const { return Signature(); }
 
     void ComponentManager::ValidateSignature(uint32_t entity_id)
     {
